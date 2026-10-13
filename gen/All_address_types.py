@@ -3,64 +3,137 @@ import json
 
 from bip_utils import (
     Bip39SeedGenerator,
-    Bip44, Bip44Coins, Bip44Changes,
-    Bip49, Bip49Coins,
-    Bip84, Bip84Coins,
-    Bip86, Bip86Coins,
     Bip32Secp256k1,
     Bip39MnemonicValidator,
-    Hash160,
-    Base58Encoder,
+    P2PKHAddrEncoder,
+    P2SHAddrEncoder,
+    P2WPKHAddrEncoder,
+    P2TRAddrEncoder,
     WifEncoder,
 )
 from bip_utils.utils.mnemonic import MnemonicChecksumError
 
-DEFAULT_MNEMONIC = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+DEFAULT_MNEMONIC = (
+    "abandon abandon abandon abandon abandon abandon "
+    "abandon abandon abandon abandon abandon about"
+)
+
+HARDENED = 0x80000000
+HARDENED_MARK = "'"
+
+# Path templates, written in the same notation as the file names:
+#   h  = hardened, i = address index, ih = hardened address index.
+PATH_TEMPLATES: list[str] = [
+    "m",                      # illustrative: master key only
+    "m-0-i",
+    "m-0h-i",
+    "m-0h-0-i",
+    "m-0h-0-ih",
+    "m-0h-0-0h",
+    "m-0h-0h-i",
+    "m-0h-0h-ih",
+    "m-0h-0h-0h",
+    "m-44h-0h-0h-0",
+    "m-44h-0h-0h-0-i",
+    "m-44h-0h-0h-0-ih",
+    "m-44h-0h-0h-i",
+    "m-44h-0h-0h-ih",
+    "m-49h-0h-0h-0-i",
+    "m-49h-0h-0h-0-ih",
+    "m-84h-0h-0h-0-i",    
+    "m-84h-0h-0h-0-ih",
+    "m-86h-0h-0h-i",
+]
 
 
-def compute_p2pkh_address(pub_key_bytes: bytes) -> str:
-    """Compute a P2PKH address from a compressed public key."""
-    h160 = Hash160.QuickDigest(pub_key_bytes)
-    return Base58Encoder.CheckEncode(b"\x00" + h160)
+def parse_template(template: str) -> list[tuple[str, bool]]:
+    """Turn 'm-44h-0h-0h-0-ih' into [('44', True), ('0', True), ..., ('i', True)]."""
+    tokens = template.split("-")[1:]  # drop leading 'm'
+    parsed: list[tuple[str, bool]] = []
+    for tok in tokens:
+        if tok == "i":
+            parsed.append(("i", False))
+        elif tok == "ih":
+            parsed.append(("i", True))
+        elif tok.endswith("h"):
+            parsed.append((tok[:-1], True))
+        else:
+            parsed.append((tok, False))
+    return parsed
 
 
-def make_address_entry(
-    index: int | None,
-    derivation_path: str,
-    address: str,
-    pub_key_bytes: bytes,
-    priv_key_bytes: bytes,
-) -> dict:
-    """Build a single address child dict."""
+def address_type_for(template: str) -> str:
+    """Pick the address type from the purpose (first path element)."""
+    parts = template.split("-")
+    purpose = parts[1] if len(parts) > 1 else ""
+    return {"49h": "p2sh-p2wpkh", "84h": "p2wpkh", "86h": "p2tr"}.get(purpose, "p2pkh")
+
+
+def encode_address(pub_key_bytes: bytes, addr_type: str) -> str:
+    """Encode a compressed public key as a mainnet Bitcoin address."""
+    if addr_type == "p2sh-p2wpkh":
+        return P2SHAddrEncoder.EncodeKey(pub_key_bytes, net_ver=b"\x05")
+    if addr_type == "p2wpkh":
+        return P2WPKHAddrEncoder.EncodeKey(pub_key_bytes, hrp="bc")
+    if addr_type == "p2tr":
+        return P2TRAddrEncoder.EncodeKey(pub_key_bytes, hrp="bc")
+    return P2PKHAddrEncoder.EncodeKey(pub_key_bytes, net_ver=b"\x00")
+
+
+def derive_node(root, elements: list[tuple[str, bool]], index: int | None):
+    """Walk the path from the root, substituting the index where 'i' appears."""
+    node = root
+    path = "m"
+    for value, hardened in elements:
+        n = index if value == "i" else int(value)
+        node = node.ChildKey(n + HARDENED if hardened else n)
+        mark = HARDENED_MARK if hardened else ""
+        path += f"/{n}{mark}"
+    return node, path
+
+
+def build_group(root, template: str, count: int) -> dict:
+    """Build the output group for one path template."""
+    elements = parse_template(template)
+    addr_type = address_type_for(template)
+    has_index = any(v == "i" for v, _ in elements)
+
+    addresses = []
+    indices = range(count) if has_index else [None]
+    for i in indices:
+        node, path = derive_node(root, elements, i)
+        pub = node.PublicKey().RawCompressed().ToBytes()
+        priv = node.PrivateKey().Raw().ToBytes()
+        addresses.append({
+            "index": i,
+            "derivation_path": path,
+            "address_type": addr_type,
+            "address": encode_address(pub, addr_type),
+            "public_key": pub.hex(),
+            "private_key": priv.hex(),
+            "wif": WifEncoder.Encode(priv),
+        })
+
     return {
-        "index": index,
-        "derivation_path": derivation_path,
-        "address": address,
-        "public_key": pub_key_bytes.hex(),
-        "private_key": priv_key_bytes.hex(),
-        "wif": WifEncoder.Encode(priv_key_bytes),
-    }
-
-
-def make_scheme(description: str, base_path: str, addresses: list[dict]) -> dict:
-    """Build a derivation-scheme group dict."""
-    return {
-        "description": description,
-        "base_path": base_path,
+        "template": template,
+        "address_type": addr_type,
+        "pattern": template.replace("-", "/").replace("ih", "i'").replace("h", "'"),
         "addresses": addresses,
     }
 
 
 def main() -> None:
-    """Generate Bitcoin addresses of all derivation types from a BIP39 mnemonic."""
-    parser = argparse.ArgumentParser(description="Generate Bitcoin addresses from a BIP39 mnemonic.")
+    """Generate Bitcoin addresses for all configured derivation paths."""
+    parser = argparse.ArgumentParser(
+        description="Generate Bitcoin addresses from a BIP39 mnemonic."
+    )
     parser.add_argument(
         "values",
         nargs="*",
         metavar="COUNT_OR_MNEMONIC",
         help=(
-            "Optional quoted mnemonic, or COUNT followed by an optional quoted mnemonic. "
-            "If omitted, uses a default test phrase."
+            "Optional quoted mnemonic, or COUNT followed by an optional quoted "
+            "mnemonic. If omitted, uses a default test phrase."
         ),
     )
     parser.add_argument(
@@ -68,7 +141,7 @@ def main() -> None:
         type=int,
         default=None,
         metavar="COUNT",
-        help="Number of sequential addresses to generate per address type (default: 1).",
+        help="Number of sequential addresses per path template (default: 1).",
     )
     args = parser.parse_args()
 
@@ -106,203 +179,9 @@ def main() -> None:
         ) from err
 
     seed_bytes = Bip39SeedGenerator(mnemonic).Generate()
-    bip32_mst = Bip32Secp256k1.FromSeed(seed_bytes)
+    root = Bip32Secp256k1.FromSeed(seed_bytes)
 
-    output: list[dict] = []
-
-    # ── Illustrative: pre-HD era P2PKH (master key only, no index) ──
-    output.append(make_scheme(
-        description="Illustrative: pre-HD era P2PKH (Bitcoin Core 2009 had no mnemonic/HD; shown here as m \u2192 P2PKH)",
-        base_path="m",
-        addresses=[make_address_entry(
-            index=None,
-            derivation_path="m",
-            address=compute_p2pkh_address(bip32_mst.PublicKey().RawCompressed().ToBytes()),
-            pub_key_bytes=bip32_mst.PublicKey().RawCompressed().ToBytes(),
-            priv_key_bytes=bip32_mst.PrivateKey().Raw().ToBytes(),
-        )],
-    ))
-
-    # ── Electrum-style: m/0'/i ──
-    electrum_base = bip32_mst.ChildKey(0x80000000)
-    electrum_addrs = []
-    for i in range(count):
-        node = electrum_base.ChildKey(i)
-        electrum_addrs.append(make_address_entry(
-            index=i,
-            derivation_path=f"m/0'/{i}",
-            address=compute_p2pkh_address(node.PublicKey().RawCompressed().ToBytes()),
-            pub_key_bytes=node.PublicKey().RawCompressed().ToBytes(),
-            priv_key_bytes=node.PrivateKey().Raw().ToBytes(),
-        ))
-    output.append(make_scheme(
-        description="Electrum-style derivation",
-        base_path="m/0'",
-        addresses=electrum_addrs,
-    ))
-
-    # ── Bitcoin Core HD-style: m/0'/0'/i' ──
-    bitcoin_core_base = bip32_mst.ChildKey(0x80000000).ChildKey(0x80000000)
-    bitcoin_core_addrs = []
-    for i in range(count):
-        node = bitcoin_core_base.ChildKey(0x80000000 + i)
-        bitcoin_core_addrs.append(make_address_entry(
-            index=i,
-            derivation_path=f"m/0'/0'/{i}'",
-            address=compute_p2pkh_address(node.PublicKey().RawCompressed().ToBytes()),
-            pub_key_bytes=node.PublicKey().RawCompressed().ToBytes(),
-            priv_key_bytes=node.PrivateKey().Raw().ToBytes(),
-        ))
-    output.append(make_scheme(
-        description="Bitcoin Core-style HD derivation",
-        base_path="m/0'/0'",
-        addresses=bitcoin_core_addrs,
-    ))
-
-    # ── BIP44 Legacy P2PKH: m/44'/0'/0'/0/i ──
-    bip44_chain = (
-        Bip44.FromSeed(seed_bytes, Bip44Coins.BITCOIN)
-        .Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT)
-    )
-    bip44_addrs = []
-    for i in range(count):
-        node = bip44_chain.AddressIndex(i)
-        bip44_addrs.append(make_address_entry(
-            index=i,
-            derivation_path=f"m/44'/0'/0'/0/{i}",
-            address=node.PublicKey().ToAddress(),
-            pub_key_bytes=node.PublicKey().RawCompressed().ToBytes(),
-            priv_key_bytes=node.PrivateKey().Raw().ToBytes(),
-        ))
-    output.append(make_scheme(
-        description="BIP44 Legacy P2PKH",
-        base_path="m/44'/0'/0'/0",
-        addresses=bip44_addrs,
-    ))
-
-    # ── MultiBit Classic: m/0'/0/i ──
-    multibit_base = bip32_mst.ChildKey(0x80000000).ChildKey(0)
-    multibit_addrs = []
-    for i in range(count):
-        node = multibit_base.ChildKey(i)
-        multibit_addrs.append(make_address_entry(
-            index=i,
-            derivation_path=f"m/0'/0/{i}",
-            address=compute_p2pkh_address(node.PublicKey().RawCompressed().ToBytes()),
-            pub_key_bytes=node.PublicKey().RawCompressed().ToBytes(),
-            priv_key_bytes=node.PrivateKey().Raw().ToBytes(),
-        ))
-    output.append(make_scheme(
-        description="MultiBit Classic-style derivation (approximate; MultiBit Classic used its own seed format, not BIP39)",
-        base_path="m/0'/0",
-        addresses=multibit_addrs,
-    ))
-
-    # ── BIP44 external-chain via raw BIP32: m/44'/0'/0'/0/i ──
-    bip44_variant_base = (
-        bip32_mst
-        .ChildKey(0x8000002C)
-        .ChildKey(0x80000000)
-        .ChildKey(0x80000000)
-        .ChildKey(0)
-    )
-    bip44_variant_addrs = []
-    for i in range(count):
-        node = bip44_variant_base.ChildKey(i)
-        bip44_variant_addrs.append(make_address_entry(
-            index=i,
-            derivation_path=f"m/44'/0'/0'/0/{i}",
-            address=compute_p2pkh_address(node.PublicKey().RawCompressed().ToBytes()),
-            pub_key_bytes=node.PublicKey().RawCompressed().ToBytes(),
-            priv_key_bytes=node.PrivateKey().Raw().ToBytes(),
-        ))
-    output.append(make_scheme(
-        description="BIP44 external-chain derivation via raw BIP32 (chain-level access)",
-        base_path="m/44'/0'/0'/0",
-        addresses=bip44_variant_addrs,
-    ))
-
-    # ── MultiBit HD: m/0'/0/i' ──
-    multibit_hd_base = bip32_mst.ChildKey(0x80000000).ChildKey(0)
-    multibit_hd_addrs = []
-    for i in range(count):
-        node = multibit_hd_base.ChildKey(0x80000000 + i)
-        multibit_hd_addrs.append(make_address_entry(
-            index=i,
-            derivation_path=f"m/0'/0/{i}'",
-            address=compute_p2pkh_address(node.PublicKey().RawCompressed().ToBytes()),
-            pub_key_bytes=node.PublicKey().RawCompressed().ToBytes(),
-            priv_key_bytes=node.PrivateKey().Raw().ToBytes(),
-        ))
-    output.append(make_scheme(
-        description="MultiBit HD-style derivation",
-        base_path="m/0'/0",
-        addresses=multibit_hd_addrs,
-    ))
-
-    # ── BIP49 Nested SegWit P2SH-P2WPKH: m/49'/0'/0'/0/i ──
-    bip49_chain = (
-        Bip49.FromSeed(seed_bytes, Bip49Coins.BITCOIN)
-        .Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT)
-    )
-    bip49_addrs = []
-    for i in range(count):
-        node = bip49_chain.AddressIndex(i)
-        bip49_addrs.append(make_address_entry(
-            index=i,
-            derivation_path=f"m/49'/0'/0'/0/{i}",
-            address=node.PublicKey().ToAddress(),
-            pub_key_bytes=node.PublicKey().RawCompressed().ToBytes(),
-            priv_key_bytes=node.PrivateKey().Raw().ToBytes(),
-        ))
-    output.append(make_scheme(
-        description="BIP49 Nested SegWit P2SH-P2WPKH",
-        base_path="m/49'/0'/0'/0",
-        addresses=bip49_addrs,
-    ))
-
-    # ── BIP84 Native SegWit P2WPKH: m/84'/0'/0'/0/i ──
-    bip84_chain = (
-        Bip84.FromSeed(seed_bytes, Bip84Coins.BITCOIN)
-        .Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT)
-    )
-    bip84_addrs = []
-    for i in range(count):
-        node = bip84_chain.AddressIndex(i)
-        bip84_addrs.append(make_address_entry(
-            index=i,
-            derivation_path=f"m/84'/0'/0'/0/{i}",
-            address=node.PublicKey().ToAddress(),
-            pub_key_bytes=node.PublicKey().RawCompressed().ToBytes(),
-            priv_key_bytes=node.PrivateKey().Raw().ToBytes(),
-        ))
-    output.append(make_scheme(
-        description="BIP84 Native SegWit P2WPKH",
-        base_path="m/84'/0'/0'/0",
-        addresses=bip84_addrs,
-    ))
-
-    # ── BIP86 Taproot P2TR: m/86'/0'/0'/0/i ──
-    bip86_chain = (
-        Bip86.FromSeed(seed_bytes, Bip86Coins.BITCOIN)
-        .Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT)
-    )
-    bip86_addrs = []
-    for i in range(count):
-        node = bip86_chain.AddressIndex(i)
-        bip86_addrs.append(make_address_entry(
-            index=i,
-            derivation_path=f"m/86'/0'/0'/0/{i}",
-            address=node.PublicKey().ToAddress(),
-            pub_key_bytes=node.PublicKey().RawCompressed().ToBytes(),
-            priv_key_bytes=node.PrivateKey().Raw().ToBytes(),
-        ))
-    output.append(make_scheme(
-        description="BIP86 Taproot P2TR",
-        base_path="m/86'/0'/0'/0",
-        addresses=bip86_addrs,
-    ))
-
+    output = [build_group(root, template, count) for template in PATH_TEMPLATES]
     print(json.dumps(output, indent=2))
 
 
