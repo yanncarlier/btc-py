@@ -19,6 +19,7 @@ Educational Python scripts for Bitcoin address derivation, mnemonic generation, 
 
 ```bash
 uv venv && source .venv/bin/activate
+uv sync
 uv pip install -e ".[dev]"
 ```
 
@@ -43,7 +44,7 @@ Usage:
 
 ```bash
 python gen/m-44h-0h-0h-i.py -n 3 "word1 word2 ... word12"
-python gen/m-0h-i.py -n 2 "abandon ... about"
+python gen/m-0h-i.py -n 2 "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
 python gen/m-0h-0h-0h.py -n 1 "mnemonic phrase"
 ```
 
