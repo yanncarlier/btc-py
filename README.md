@@ -18,6 +18,7 @@ Educational Python scripts for Bitcoin address derivation, mnemonic generation, 
 - `uv` or `pip`
 
 ```bash
+uv self update
 uv venv && source .venv/bin/activate
 uv sync
 uv pip install -e ".[dev]"
