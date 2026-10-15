@@ -17,4 +17,5 @@ dist/
 
 # Environment / secrets
 .env
-.env.*notes.md
+.env.*
+notes.md
