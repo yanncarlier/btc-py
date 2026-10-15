@@ -3,7 +3,7 @@ import json, subprocess, sys
 from pathlib import Path
 
 def test():
-    cmd = [sys.executable, str(Path("gen/m-86h-0h-0h-i.py"))] + ['-n', '2', 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about']
+    cmd = [sys.executable, str(Path("derive/m-86h-0h-0h-i.py"))] + ['-n', '2', 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about']
     result = subprocess.run(cmd, capture_output=True, text=True)
     assert result.returncode == 0, f"Exit {result.returncode}: {result.stderr}"
     with open(Path(__file__).parent / "fixtures" / Path(__file__).with_suffix(".json").name) as f:

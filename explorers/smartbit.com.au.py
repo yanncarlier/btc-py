@@ -3,8 +3,8 @@
 .. warning::
     Smartbit (api.smartbit.com.au) is **permanently offline** as of 2022.
     This script raises a ``RuntimeError`` on every invocation to make that
-    explicit.  The file is kept alongside the other ``net/`` scripts for
-    reference and completeness.
+    explicit.  The file is kept alongside the other ``explorers/``
+    scripts for reference and completeness.
 """
 
 from __future__ import annotations

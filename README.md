@@ -1,4 +1,4 @@
-# btc-py-scripts
+# scripts
 
 Educational Python scripts for Bitcoin address derivation, mnemonic generation, and blockchain queries.
 
@@ -30,37 +30,37 @@ uv pip install -e ".[dev]"
 
 | New Filename | Derivation Path | Address Type | Era / Market |
 |---|---|---|---|
-| `gen/m-0-i.py` | `m/0/{i}` | Legacy P2PKH | Pre-HD (2009) |
-| `gen/m-0h-i.py` | `m/0'/{i}` | Legacy P2PKH | Electrum-style (2011) |
-| `gen/m-0h-0h-0h.py` | `m/0'/0'/0'` | Legacy P2PKH | Bitcoin Core HD (2012) |
-| `gen/m-0h-0-i.py` | `m/0'/0/{i}` | Legacy P2PKH | MultiBit Classic |
-| `gen/m-0h-0-0h.py` | `m/0'/0/0'` | Legacy P2PKH | MultiBit HD |
-| `gen/m-44h-0h-0h-i.py` | `m/44'/0'/0'/0/n` | Legacy P2PKH | BIP44 (2014) |
-| `gen/m-44h-0h-0h-0.py` | `m/44'/0'/0'/0` | Chain-level P2PKH | BIP44 external chain |
-| `gen/m-49h-0h-0h-i.py` | `m/49'/0'/0'/0/n` | Wrapped SegWit (P2SH-P2WPKH) | BIP49 (2016) |
-| `gen/m-84h-0h-0h-i.py` | `m/84'/0'/0'/0/n` | Native SegWit (P2WPKH) | BIP84 (2017) |
-| `gen/m-86h-0h-0h-i.py` | `m/86'/0'/0'/{i}` | Taproot (P2TR) | BIP86 (2021) |
+| `derive/m-0-i.py` | `m/0/{i}` | Legacy P2PKH | Pre-HD (2009) |
+| `derive/m-0h-i.py` | `m/0'/{i}` | Legacy P2PKH | Electrum-style (2011) |
+| `derive/m-0h-0h-0h.py` | `m/0'/0'/0'` | Legacy P2PKH | Bitcoin Core HD (2012) |
+| `derive/m-0h-0-i.py` | `m/0'/0/{i}` | Legacy P2PKH | MultiBit Classic |
+| `derive/m-0h-0-0h.py` | `m/0'/0/0'` | Legacy P2PKH | MultiBit HD |
+| `derive/m-44h-0h-0h-i.py` | `m/44'/0'/0'/0/n` | Legacy P2PKH | BIP44 (2014) |
+| `derive/m-44h-0h-0h-0.py` | `m/44'/0'/0'/0` | Chain-level P2PKH | BIP44 external chain |
+| `derive/m-49h-0h-0h-i.py` | `m/49'/0'/0'/0/n` | Wrapped SegWit (P2SH-P2WPKH) | BIP49 (2016) |
+| `derive/m-84h-0h-0h-i.py` | `m/84'/0'/0'/0/n` | Native SegWit (P2WPKH) | BIP84 (2017) |
+| `derive/m-86h-0h-0h-i.py` | `m/86'/0'/0'/{i}` | Taproot (P2TR) | BIP86 (2021) |
 
 Usage:
 
 ```bash
-python gen/m-44h-0h-0h-i.py -n 3 "word1 word2 ... word12"
-python gen/m-0h-i.py -n 2 "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
-python gen/m-0h-0h-0h.py -n 1 "mnemonic phrase"
+python derive/m-44h-0h-0h-i.py -n 3 "word1 word2 ... word12"
+python derive/m-0h-i.py -n 2 "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+python derive/m-0h-0h-0h.py -n 1 "mnemonic phrase"
 ```
 
 Also kept (not derivation-path named):
-- `gen/All_address_types.py`
-- `gen/Brain_wallet.py`
-- `gen/Generate_mnemonic.py`
-- `gen/derivation_cli.py`
+- `derive/all_address_types.py`
+- `derive/brain_wallet.py`
+- `derive/generate_mnemonic.py`
+- `derive/derivation_cli.py`
 
 ---
 
 ## Tests
 
 - `tests/test_*.py` — 13 test files comparing output to golden fixtures
-- `tests/fixtures/*.json` — 12 reference outputs (Generate_mnemonic excluded — random)
+- `tests/fixtures/*.json` — 12 reference outputs (generate_mnemonic excluded — random)
 
 ```bash
 pytest tests/

@@ -8,8 +8,8 @@
     method to query the balance of an arbitrary address through this API.
 
     This script raises a ``RuntimeError`` on every invocation to make that
-    limitation explicit.  The file is kept alongside the other ``net/``
-    scripts for reference and completeness.
+    limitation explicit.  The file is kept alongside the other
+    ``explorers/`` scripts for reference and completeness.
 
     If you need address-based balance lookups with an API key-gated service,
     see ``cryptoapis.io.py`` instead.

@@ -1,6 +1,6 @@
 # WIP dont' use
 
-### Method 2: Using tx/sweep.py
+### Method 2: Using sweep/sweep.py
 
 ```
 # NetworkAPI tries the following services in order until one succeeds:Mainnet
@@ -11,7 +11,7 @@
 # - SmartbitAPI
 # - BlockchainAPI (blockchain.info)
 
-python tx/sweep.py -h
+python sweep/sweep.py -h
 usage: sweep.py [-h] [--testnet] wif_key dest_address
 
 Programmatically transfer all bitcoin from a private key to a destination address.

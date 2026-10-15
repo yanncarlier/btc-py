@@ -115,7 +115,8 @@ from package_name.models import Record
 - **Functions/variables**: `snake_case` (e.g., `parse_config`, `retry_count`)
 - **Classes**: `PascalCase` (e.g., `RequestHandler`, `ConnectionPool`)
 - **Constants**: `SCREAMING_SNAKE_CASE` (e.g., `DEFAULT_TIMEOUT_SECONDS`)
-- **Modules/packages**: short, lowercase, `snake_case` if multi-word (e.g., `request_handler.py`)
+- **Modules/packages**: short, lowercase, `snake_case` if multi-word (e.g., `request_handler.py`). This holds for anything Python imports — kebab-case is not a valid Python identifier, so `All_address_types.py` is wrong, not `all-address-types.py`.
+- **Directories and non-importable files**: lowercase `kebab-case` (e.g., `api/`, `derive/`, `explorers/`), named by role rather than by project. Standalone scripts run by path (never imported) may use kebab-case, e.g. the `derive/m-44h-0h-0h-i.py` derivation-path scripts, where `/` maps to `-` and `'` maps to `h`.
 - **"Private" attributes/methods**: prefix with a single underscore (`_internal_state`); use double-underscore name mangling (`__attr`) only when actually needed to avoid subclass collisions.
 - Avoid single-letter variable names outside short comprehensions or loop counters.
 
