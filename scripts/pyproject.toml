@@ -1,0 +1,16 @@
+[project]
+name = "btc-py-scripts"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "bit>=0.8.0",
+    "bip-utils>=2.9.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+]

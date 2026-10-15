@@ -1,0 +1,5 @@
+base58
+bip32utils
+bitcoinlib
+cryptography
+mnemonic
