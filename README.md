@@ -55,9 +55,9 @@ Usage
 bash
 
 ```bash
-python api/main.py
+python main.py
 # or
-uvicorn api/main:app --host 0.0.0.0 --port 8000
+uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
 1. Access the API:
