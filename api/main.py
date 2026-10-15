@@ -29,7 +29,7 @@ rate_limit_lock = threading.Lock()
 # FastAPI Application Setup
 app = FastAPI(
     title="Bitcoin Address Generation API",
-    version="1.0.0",
+    version="2.0.0",
     description="API for generating Bitcoin mnemonic seeds and various address types (BIP32, BIP44, BIP49, BIP84, BIP86).",
     servers=[
         # {"url": "http://0.0.0.0:8000/", "description": "Development server"},
