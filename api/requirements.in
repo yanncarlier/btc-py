@@ -1,0 +1,6 @@
+base58
+cryptography
+fastapi
+mnemonic
+pydantic
+uvicorn
